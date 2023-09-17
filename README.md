@@ -60,13 +60,11 @@ wget https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_ba
 ### 4.2. 训练模型
 使用shell脚本来训练模型
 ```
-cd ./code/
 sh train.sh
 ```
 
 ## 5. 推理
 使用shell脚本进行推理
 ```
-cd ./code/
 sh test.sh
 ```

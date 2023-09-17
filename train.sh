@@ -1,0 +1,24 @@
+CUDA_VISIBLE_DEVICES=0 python -m torch.distributed.launch --nproc_per_node 1 --master_port 12341  ./train/main.py \
+--dataset leaf_disease_new \
+--data_path ../xfdata/leaf_disease_new \
+--tag leaf_disease_new \
+--lr 1e-3 \
+--model full \
+--mask \
+--swap \
+--con \
+--margin 1 \
+--origin_w 1 \
+--swap_w 1 \
+--con_w 1 \
+--suppr_w 0 \
+--drop_w 1 \
+--num_part 2 \
+--img_size 448 \
+--cfg ./train/configs/swin/swin_base_patch4_window7_448.yaml \
+--data-path ../xfdata/ \
+--batch-size 4 \
+--eval-batch-size 4 \
+--epochs 200 \
+--pretrained ./train/pretrained_models/swin_base_patch4_window7_224_22k.pth \
+--output ../user_data
