@@ -1,15 +1,7 @@
-# --------------------------------------------------------
-# Swin Transformer
-# Copyright (c) 2021 Microsoft
-# Licensed under The MIT License [see LICENSE for details]
-# Written by Ze Liu
-# --------------------------------------------------------
-
 import torch
 import torch.nn as nn
 import torch.utils.checkpoint as checkpoint
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-from typing import Union
 
 try:
     import os, sys
@@ -668,10 +660,8 @@ class WeaklySelector(nn.Module):
             [B,C,H,W] will be transpose to [B, HxW, C] automatically.
         """
         logits = {}
+        logits_distillation = {}
         for name in x:
-            # print("[selector]", name, x[name].size())
-            if "FPN1_" in name:
-                continue
             if len(x[name].size()) == 4:
                 B, C, H, W = x[name].size()
                 x[name] = x[name].view(B, C, H * W).permute(0, 2, 1).contiguous()
@@ -687,6 +677,5 @@ class WeaklySelector(nn.Module):
                 preds_0.append(logits[name][bi][ranks[num_select:]].float())
 
             preds_0 = torch.stack(preds_0)
-            logits["drop_" + name] = preds_0.float()
-
-        return logits
+            logits_distillation[name] = preds_0.float()
+        return logits_distillation
