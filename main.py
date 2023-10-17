@@ -146,7 +146,7 @@ def train_one_epoch(config, model, criterion, data_loader, optimizer, epoch, mix
     cls_loss_meter = AverageMeter()
     swap_loss_meter = AverageMeter()
     con_loss_meter = AverageMeter()
-    loss_s_meter = AverageMeter()
+    loss_fd_meter = AverageMeter()
     loss_dr_meter = AverageMeter()
     scale = int(1 + config.TRAIN.SWAP)
     norm_meter = AverageMeter()
@@ -184,26 +184,16 @@ def train_one_epoch(config, model, criterion, data_loader, optimizer, epoch, mix
 
         if config.TRAIN.use_selection:
             for name in logits_dict:
-                if "drop_" in name:
-                    loss_dr = torch.tensor(0.0).cuda(non_blocking=True)
-                    if config.TRAIN.DROP_W != 0:
-                        S = logits_dict[name].size(1)
-                        logit = logits_dict[name].view(-1, config.MODEL.NUM_CLASSES).contiguous()
-                        n_preds = nn.Tanh()(logit)
-                        labels_0 = torch.zeros([B * S, config.MODEL.NUM_CLASSES]) - 1
-                        labels_0 = labels_0.cuda(non_blocking=True)
-                        loss_dr_ = nn.MSELoss()(n_preds[:B // scale], labels_0[:B // scale])
-                        loss += config.TRAIN.DROP_W * loss_dr_
-                        loss_dr += loss_dr_
-                else:
-                    loss_s = torch.tensor(0.0).cuda(non_blocking=True)
-                    if config.TRAIN.SUPPR_W != 0:
-                        gt_score_map = logits_dict[name].detach()
-                        gt_score_map = suppression(gt_score_map, temperature)
-                        logit = F.log_softmax(logits_dict[name] / temperature, dim=-1)
-                        loss_s_ = torch.abs(nn.KLDivLoss()(logit[:B // scale], gt_score_map[:B // scale]))
-                        loss += config.TRAIN.SUPPR_W * loss_s_
-                        loss_s += loss_s_
+                loss_fd = torch.tensor(0.0).cuda(non_blocking=True)
+                if config.TRAIN.FD_W != 0:
+                    S = logits_dict[name].size(1)
+                    logit = logits_dict[name].view(-1, config.MODEL.NUM_CLASSES).contiguous()
+                    n_preds = nn.Hardtanh()(logit)
+                    labels_0 = torch.zeros([B * S, config.MODEL.NUM_CLASSES]) - 1
+                    labels_0 = labels_0.cuda(non_blocking=True)
+                    loss_fd_ = nn.MSELoss()(n_preds[:B // scale], labels_0[:B // scale])
+                    loss += config.TRAIN.FD_W * loss_fd_
+                    loss_fd += loss_fd_
 
         loss = loss / config.TRAIN.ACCUMULATION_STEPS
 
@@ -228,7 +218,7 @@ def train_one_epoch(config, model, criterion, data_loader, optimizer, epoch, mix
             con_loss_meter.update(loss_con.item(), imgs.size(0))
 
         if config.TRAIN.use_selection:
-            loss_s_meter.update(loss_s.item(), imgs.size(0))
+            loss_fd_meter.update(loss_fd.item(), imgs.size(0))
             loss_dr_meter.update(loss_dr.item(), imgs.size(0))
 
         if grad_norm is not None:  # loss_scaler return None if not update
@@ -249,7 +239,7 @@ def train_one_epoch(config, model, criterion, data_loader, optimizer, epoch, mix
                 f'loss_cls {cls_loss_meter.val:.4f} ({cls_loss_meter.avg:.4f})\t'
                 f'loss_swap {swap_loss_meter.val:.4f} ({swap_loss_meter.avg:.4f})\t'
                 f'loss_con {con_loss_meter.val:.4f} ({con_loss_meter.avg:.4f})\t'
-                f'loss_s {loss_s_meter.val:.4f} ({loss_s_meter.avg:.4f})\t'
+                f'loss_fd {loss_fd_meter.val:.4f} ({loss_fd_meter.avg:.4f})\t'
                 f'loss_dr {loss_dr_meter.val:.4f} ({loss_dr_meter.avg:.4f})\t'
                 f'grad_norm {norm_meter.val:.4f} ({norm_meter.avg:.4f})\t'
                 f'loss_scale {scaler_meter.val:.4f} ({scaler_meter.avg:.4f})\t'
